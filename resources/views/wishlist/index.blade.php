@@ -1,61 +1,47 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Wishlist Saya') }}
-        </h2>
-    </x-slot>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <h1 class="font-serif text-4xl text-[#3D405B] font-bold mb-10">Wishlist Saya</h1>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (session('success'))
-                <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    @forelse ($wishlists as $wishlist)
-                        <div class="flex items-center gap-4 py-4 border-b border-gray-100 last:border-0">
-                            <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                                @if ($wishlist->product->image)
-                                    <img src="{{ Storage::url($wishlist->product->image) }}" alt="{{ $wishlist->product->name }}" class="w-full h-full object-cover rounded-lg">
-                                @else
-                                    <span class="text-gray-400 text-xs">No Image</span>
-                                @endif
-                            </div>
-                            <div class="flex-1">
-                                <a href="{{ route('products.show', $wishlist->product) }}" class="text-lg font-semibold text-gray-900 hover:text-indigo-600">
-                                    {{ $wishlist->product->name }}
-                                </a>
-                                <p class="text-indigo-600 font-medium">Rp {{ number_format($wishlist->product->price, 0, ',', '.') }}</p>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <form action="{{ route('cart.store') }}" method="POST">
-                                    @csrf
-                                    <input type="hidden" name="product_id" value="{{ $wishlist->product_id }}">
-                                    <input type="hidden" name="quantity" value="1">
-                                    <x-primary-button class="text-sm">{{ __('+ Keranjang') }}</x-primary-button>
-                                </form>
-                                <form action="{{ route('wishlist.destroy', $wishlist->product) }}" method="POST">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="p-2 text-red-400 hover:text-red-600 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="text-center py-12 text-gray-500">
-                            <p class="text-lg">Wishlist masih kosong.</p>
-                            <a href="{{ route('products.index') }}" class="text-indigo-600 hover:text-indigo-800 mt-2 inline-block">Jelajahi produk &rarr;</a>
-                        </div>
-                    @endforelse
-                </div>
+        @if($wishlists->isEmpty())
+            <div class="bg-white rounded-2xl border border-gray-200/60 shadow-sm p-16 text-center">
+                <div class="text-6xl mb-6">💝</div>
+                <h3 class="font-serif text-2xl text-[#3D405B] mb-2 font-bold">Belum Ada Wishlist</h3>
+                <p class="text-gray-500 mb-8">Simpan produk yang kamu suka di sini biar gampang dicari nanti.</p>
+                <a href="{{ route('products.index') }}" class="inline-flex items-center justify-center px-8 py-3 bg-[#E07A5F] text-white font-semibold rounded-xl shadow-sm hover:bg-[#C96B50] hover:shadow-md transition-all duration-300">
+                    Cari Produk Favorit
+                </a>
             </div>
-        </div>
+        @else
+            <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                @foreach($wishlists as $wishlist)
+                    @php $product = $wishlist->product; @endphp
+                    <div class="group bg-white rounded-2xl border border-gray-200/60 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] overflow-hidden flex flex-col relative">
+                        <!-- Remove from Wishlist Button -->
+                        <form action="{{ route('wishlist.destroy', $product) }}" method="POST" class="absolute top-3 right-3 z-10">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-[#E07A5F] hover:bg-red-50 hover:text-red-600 shadow-sm transition-all">
+                                ✕
+                            </button>
+                        </form>
+
+                        <a href="{{ route('products.show', $product->slug) }}" class="block aspect-[3/4] overflow-hidden relative">
+                            <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        </a>
+                        <div class="p-4 flex flex-col flex-grow">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">{{ $product->brand->name ?? 'Brand' }}</p>
+                            <a href="{{ route('products.show', $product->slug) }}" class="font-medium text-gray-900 mt-1 line-clamp-2 hover:text-[#E07A5F] transition-colors">
+                                {{ $product->name }}
+                            </a>
+                            <p class="text-lg font-bold text-[#E07A5F] mt-2 mb-4">{{ $product->formattedPrice() }}</p>
+                            
+                            <a href="{{ route('products.show', $product->slug) }}" class="mt-auto w-full inline-flex items-center justify-center px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-white hover:border-[#E07A5F] hover:text-[#E07A5F] transition-all duration-300">
+                                Lihat Detail
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
     </div>
 </x-app-layout>

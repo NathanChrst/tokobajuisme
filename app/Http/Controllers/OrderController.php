@@ -2,69 +2,49 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cart;
 use App\Models\Order;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class OrderController extends Controller
 {
-    public function index(): View
+    public function index()
     {
-        $orders = Order::with('items.product')
-            ->where('user_id', auth()->id())
+        $orders = auth()->user()->orders()
+            ->with(['items.productVariant.product', 'payment'])
             ->latest()
-            ->get();
+            ->paginate(10);
 
         return view('orders.index', compact('orders'));
     }
 
-    public function checkout(): View
+    public function show(Order $order)
     {
-        $cartItems = Cart::with('product')
-            ->where('user_id', auth()->id())
-            ->get();
+        $this->authorize('view', $order);
 
-        if ($cartItems->isEmpty()) {
-            abort(404);
-        }
+        $order->load(['items.productVariant.product.images', 'items.productVariant.product.brand', 'address', 'payment']);
 
-        $total = $cartItems->sum(fn ($item) => $item->product->price * $item->quantity);
-
-        return view('orders.checkout', compact('cartItems', 'total'));
+        return view('orders.show', compact('order'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function cancel(Order $order)
     {
-        $cartItems = Cart::with('product')
-            ->where('user_id', auth()->id())
-            ->get();
+        $this->authorize('update', $order);
 
-        if ($cartItems->isEmpty()) {
-            return back()->withErrors(['cart' => 'Keranjang belanja kosong.']);
+        if (!$order->isCancelable()) {
+            return back()->with('error', 'Pesanan tidak dapat dibatalkan.');
         }
 
-        $total = $cartItems->sum(fn ($item) => $item->product->price * $item->quantity);
-
-        $order = Order::create([
-            'user_id' => auth()->id(),
-            'status' => 'pending',
-            'total' => $total,
-        ]);
-
-        foreach ($cartItems as $item) {
-            $item->product->decrement('stock', $item->quantity);
-
-            $order->items()->create([
-                'product_id' => $item->product_id,
-                'quantity' => $item->quantity,
-                'price' => $item->product->price,
-            ]);
-
-            $item->delete();
+        // Restore stock
+        foreach ($order->items as $item) {
+            $item->productVariant->increment('stock', $item->quantity);
         }
 
-        return redirect()->route('orders.index')->with('success', 'Pesanan berhasil dibuat.');
+        $order->update(['status' => 'canceled']);
+
+        if ($order->payment) {
+            $order->payment->update(['status' => 'failed']);
+        }
+
+        return back()->with('success', 'Pesanan berhasil dibatalkan.');
     }
 }

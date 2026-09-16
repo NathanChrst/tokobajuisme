@@ -2,79 +2,82 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cart;
-use App\Models\Product;
-use Illuminate\Http\RedirectResponse;
+use App\Models\CartItem;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class CartController extends Controller
 {
-    public function index(): View
+    public function index()
     {
-        $cartItems = Cart::with('product')
-            ->where('user_id', auth()->id())
-            ->latest()
+        $cartItems = auth()->user()->cartItems()
+            ->with(['productVariant.product.images', 'productVariant.product.brand'])
             ->get();
 
-        $total = $cartItems->sum(fn ($item) => $item->product->price * $item->quantity);
+        $total = $cartItems->sum(fn ($item) => $item->subtotal());
 
         return view('cart.index', compact('cartItems', 'total'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_variant_id' => 'required|exists:product_variants,id',
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $product = Product::findOrFail($request->product_id);
+        $variant = ProductVariant::findOrFail($request->product_variant_id);
 
-        if ($product->stock < $request->quantity) {
-            return back()->withErrors(['quantity' => 'Stok tidak mencukupi.']);
+        // Check stock
+        if ($request->quantity > $variant->stock) {
+            return back()->with('error', 'Stok tidak mencukupi. Tersisa ' . $variant->stock . ' item.');
         }
 
-        Cart::updateOrCreate(
-            [
-                'user_id' => auth()->id(),
-                'product_id' => $request->product_id,
-            ],
-            [
+        // Check if already in cart
+        $existingItem = auth()->user()->cartItems()
+            ->where('product_variant_id', $variant->id)
+            ->first();
+
+        if ($existingItem) {
+            $newQty = $existingItem->quantity + $request->quantity;
+            if ($newQty > $variant->stock) {
+                return back()->with('error', 'Total kuantitas melebihi stok yang tersedia.');
+            }
+            $existingItem->update(['quantity' => $newQty]);
+        } else {
+            auth()->user()->cartItems()->create([
+                'product_variant_id' => $variant->id,
                 'quantity' => $request->quantity,
-            ]
-        );
+            ]);
+        }
 
-        return redirect()->route('cart.index')->with('success', 'Produk ditambahkan ke keranjang.');
+        return redirect()->route('cart.index')->with('success', 'Produk berhasil ditambahkan ke keranjang!');
     }
 
-    public function update(Request $request, Cart $cart): RedirectResponse
+    public function update(Request $request, CartItem $cartItem)
     {
+        $this->authorize('update', $cartItem);
+
         $request->validate([
             'quantity' => 'required|integer|min:1',
         ]);
 
-        if ($cart->user_id !== auth()->id()) {
-            abort(403);
+        $variant = $cartItem->productVariant;
+        if ($request->quantity > $variant->stock) {
+            return back()->with('error', 'Stok tidak mencukupi. Tersisa ' . $variant->stock . ' item.');
         }
 
-        if ($cart->product->stock < $request->quantity) {
-            return back()->withErrors(['quantity' => 'Stok tidak mencukupi.']);
-        }
+        $cartItem->update(['quantity' => $request->quantity]);
 
-        $cart->update(['quantity' => $request->quantity]);
-
-        return redirect()->route('cart.index')->with('success', 'Keranjang diperbarui.');
+        return back()->with('success', 'Keranjang berhasil diperbarui.');
     }
 
-    public function destroy(Cart $cart): RedirectResponse
+    public function destroy(CartItem $cartItem)
     {
-        if ($cart->user_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorize('delete', $cartItem);
 
-        $cart->delete();
+        $cartItem->delete();
 
-        return redirect()->route('cart.index')->with('success', 'Produk dihapus dari keranjang.');
+        return back()->with('success', 'Item berhasil dihapus dari keranjang.');
     }
 }

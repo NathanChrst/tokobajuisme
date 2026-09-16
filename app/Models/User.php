@@ -17,7 +17,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'profile_picture',
+        'phone_number',
+        'role',
+        'is_blocked',
     ];
 
     protected $hidden = [
@@ -30,21 +32,42 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_blocked' => 'boolean',
         ];
     }
 
-    public function carts(): HasMany
+    public function isAdmin(): bool
     {
-        return $this->hasMany(Cart::class);
+        return $this->role === 'admin';
     }
 
-    public function orders(): HasMany
+    public function isCustomer(): bool
     {
-        return $this->hasMany(Order::class);
+        return $this->role === 'customer';
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    public function defaultAddress()
+    {
+        return $this->addresses()->where('is_default', true)->first();
+    }
+
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
     }
 
     public function wishlists(): HasMany
     {
         return $this->hasMany(Wishlist::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 }

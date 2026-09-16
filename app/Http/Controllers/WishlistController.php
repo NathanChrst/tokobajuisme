@@ -4,39 +4,44 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Wishlist;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class WishlistController extends Controller
 {
-    public function index(): View
+    public function index()
     {
-        $wishlists = Wishlist::with('product')
-            ->where('user_id', auth()->id())
+        $wishlists = auth()->user()->wishlists()
+            ->with(['product.images', 'product.brand', 'product.variants'])
             ->latest()
             ->get();
 
         return view('wishlist.index', compact('wishlists'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
         ]);
 
-        Wishlist::firstOrCreate([
-            'user_id' => auth()->id(),
+        $exists = auth()->user()->wishlists()
+            ->where('product_id', $request->product_id)
+            ->exists();
+
+        if ($exists) {
+            return back()->with('info', 'Produk sudah ada di wishlist.');
+        }
+
+        auth()->user()->wishlists()->create([
             'product_id' => $request->product_id,
         ]);
 
-        return back()->with('success', 'Produk ditambahkan ke wishlist.');
+        return back()->with('success', 'Produk ditambahkan ke wishlist! ❤️');
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function destroy(Product $product)
     {
-        Wishlist::where('user_id', auth()->id())
+        auth()->user()->wishlists()
             ->where('product_id', $product->id)
             ->delete();
 

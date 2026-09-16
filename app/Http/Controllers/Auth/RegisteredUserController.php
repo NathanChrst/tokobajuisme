@@ -32,7 +32,8 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class, 'regex:/@gmail\.com$/'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'phone_number' => ['nullable', 'string', 'max:20'],
             'password' => [
                 'required',
                 'confirmed',
@@ -41,7 +42,6 @@ class RegisteredUserController extends Controller
                     ->numbers(),
             ],
         ], [
-            'email.regex' => 'Email harus menggunakan @gmail.com',
             'password.mixed' => 'Password harus mengandung huruf besar dan kecil',
             'password.numbers' => 'Password harus mengandung angka',
             'password.min' => 'Password minimal harus :min karakter',
@@ -51,6 +51,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone_number' => $request->phone_number,
             'password' => Hash::make($request->password),
         ]);
 
