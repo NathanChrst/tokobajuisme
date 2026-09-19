@@ -1,25 +1,31 @@
 <x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Lupa password Anda? Tidak masalah. Beri tahu kami alamat email Anda dan kami akan mengirimi Anda tautan setel ulang password yang memungkinkan Anda memilih yang baru.') }}
+    <div class="mb-6 text-xs sm:text-sm text-slate-300 leading-relaxed">
+        {{ __('Lupa password akun Jcloths Anda? Masukkan alamat email Anda dan kami akan mengirimi tautan setel ulang password.') }}
     </div>
 
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('password.email') }}">
+    <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
         @csrf
 
         <!-- Email Address -->
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full rounded-xl border-gray-300 focus:border-[#E07A5F] focus:ring-[#E07A5F] shadow-sm" type="email" name="email" :value="old('email')" required autofocus />
+            <x-text-input id="email" class="block mt-1 w-full text-sm" type="email" name="email" :value="old('email')" required autofocus placeholder="nama@email.com" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button class="bg-[#E07A5F] hover:bg-[#C96B50] rounded-xl w-full justify-center py-3">
+        <div class="pt-2">
+            <x-primary-button class="w-full justify-center">
                 {{ __('Kirim Tautan Reset Password') }}
             </x-primary-button>
+        </div>
+
+        <div class="text-center pt-4 border-t border-[#232336] mt-4">
+            <a href="{{ route('login') }}" class="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                &larr; Kembali ke halaman Masuk
+            </a>
         </div>
     </form>
 </x-guest-layout>
